@@ -8,7 +8,6 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- ★追加：pinyin-proの読み込み -->
   <script src="https://unpkg.com/pinyin-pro"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700&family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
@@ -38,14 +37,14 @@
       const [currentSheet, setCurrentSheet] = useState("");
       const [conversation, setConversation] = useState([]);
       const [videoUrl, setVideoUrl] = useState("");
-      const [activeLine, setActiveLine] = useState(null);
+      const[activeLine, setActiveLine] = useState(null);
       const [isRecording, setIsRecording] = useState(false);
       const [isPlaying, setIsPlaying] = useState(null);
-      const[evalResults, setEvalResults] = useState({});
+      const [evalResults, setEvalResults] = useState({});
       const [isLoading, setIsLoading] = useState(true);
-      const [loadingEval, setLoadingEval] = useState(null);
+      const[loadingEval, setLoadingEval] = useState(null);
       
-      const[speakerColors, setSpeakerColors] = useState({});
+      const [speakerColors, setSpeakerColors] = useState({});
       
       const recognition = useRef(null);
 
@@ -153,7 +152,6 @@
         recognition.current.start();
       };
 
-      // ★変更：AI評価からフロントエンドでの独自評価ロジックに変更
       const evaluate = async (line, transcript) => {
         setLoadingEval(line.id);
         try {
@@ -168,10 +166,8 @@
 
           // --- フロントエンドでの評価ロジック ---
           
-          // 比較用に文字列を整形する関数（スペース、句読点などを削除し、小文字化）
           const normalizeText = (text) => {
             if (!text) return "";
-            // 全角半角スペース、一般的な句読点・記号をすべて削除し、小文字に変換
             return text.replace(/[\s　，。？！、：；“”‘’（）\(\)\[\]【】,\.\?!:;"']/g, '').toLowerCase();
           };
 
@@ -181,15 +177,14 @@
           let isCorrect = false;
           let feedback = "";
 
-          // 1. 中国語の簡体字同士で比較
+          // ★追加：ユーザーの音声入力から「表示用」のピンインを生成（スペース区切りで読みやすく）
+          const userPinyinDisplay = pinyinPro.pinyin(transcript, { toneType: 'symbol' });
+
           if (targetChinese === userChinese) {
             isCorrect = true;
             feedback = "正しく発音されました";
           } else {
-            // 2. 一致しなかった場合、ピンインに変換して比較
             const targetPinyin = normalizeText(line.pinyin);
-            
-            // pinyin-proを使用して、ユーザーの音声認識結果をピンインに変換
             const userPinyinRaw = pinyinPro.pinyin(transcript, { toneType: 'symbol', type: 'array' }).join('');
             const userPinyin = normalizeText(userPinyinRaw);
 
@@ -204,9 +199,9 @@
 
           const score = isCorrect ? 100 : 0;
           
-          // 評価が一瞬で終わってしまうため、少しだけ待機してローディングUIを見せる
           setTimeout(() => {
-            setEvalResults(prev => ({ ...prev,[line.id]: { score, feedback, transcript } }));
+            // ★変更：userPinyinDisplay を保存データに追加
+            setEvalResults(prev => ({ ...prev,[line.id]: { score, feedback, transcript, userPinyinDisplay } }));
             setLoadingEval(null);
           }, 600);
 
@@ -218,7 +213,7 @@
 
       return (
         <div className="p-4 md:p-10 max-w-2xl mx-auto">
-          <h1 className="text-4xl font-serif mb-6 text-center pb-2 font-bold">じわじわ身につく中国語<span className="italic text-yellow-600">会話篇</span></h1>
+         <h1 className="text-4xl font-serif mb-6 text-center pb-2 font-bold">じわじわ身につく中国語<span className="italic text-yellow-600">会話篇</span></h1>
           
           <div className="mb-8 text-center border-b pb-6">
             <select 
@@ -285,9 +280,11 @@
                   {evalResults[line.id] && (
                     <div className="mt-4 p-4 bg-gray-50 rounded border-t border-gray-200 shadow-inner">
                       <div className="flex flex-col gap-1 mb-3 border-b border-gray-300 pb-2">
-                        {/* ★変更：AIスコアという表記を「スコア」に変更しました */}
                         <span className="font-bold text-yellow-600 text-xl">スコア: {evalResults[line.id].score} 点</span>
                         <span className="text-gray-600 font-bold text-lg">あなたの発音: "{evalResults[line.id].transcript}"</span>
+                        
+                        {/* ★追加：ユーザーのピンインを表示 */}
+                        <span className="text-gray-500 font-mono text-base">ピンイン: {evalResults[line.id].userPinyinDisplay}</span>
                       </div>
                       <p className="text-gray-800 text-lg font-medium leading-relaxed">{evalResults[line.id].feedback}</p>
                     </div>
